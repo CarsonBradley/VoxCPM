@@ -3,3 +3,6 @@ __pycache__
 voxcpm.egg-info
 .DS_Store
 venv/
+
+# Large model files - download separately
+models/
