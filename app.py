@@ -19,14 +19,21 @@ class VoxCPMDemo:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         print(f"🚀 Running on device: {self.device}", file=sys.stderr)
 
-        # ASR model for prompt text recognition
+        # ASR model for prompt text recognition (optional)
         self.asr_model_id = "iic/SenseVoiceSmall"
-        self.asr_model: Optional[AutoModel] = AutoModel(
-            model=self.asr_model_id,
-            disable_update=True,
-            log_level='DEBUG',
-            device="cuda:0" if self.device == "cuda" else "cpu",
-        )
+        self.asr_model: Optional[AutoModel] = None
+        try:
+            print(f"Loading ASR model: {self.asr_model_id}", file=sys.stderr)
+            self.asr_model = AutoModel(
+                model=self.asr_model_id,
+                disable_update=True,
+                log_level='DEBUG',
+                device="cuda:0" if self.device == "cuda" else "cpu",
+            )
+            print("✓ ASR model loaded successfully", file=sys.stderr)
+        except Exception as e:
+            print(f"⚠️  Warning: Failed to load ASR model ({e})", file=sys.stderr)
+            print("   Auto-transcription will be disabled. You can manually enter prompt text.", file=sys.stderr)
 
         # TTS model (lazy init)
         self.voxcpm_model: Optional[voxcpm.VoxCPM] = None
@@ -72,9 +79,15 @@ class VoxCPMDemo:
     def prompt_wav_recognition(self, prompt_wav: Optional[str]) -> str:
         if prompt_wav is None:
             return ""
-        res = self.asr_model.generate(input=prompt_wav, language="auto", use_itn=True)
-        text = res[0]["text"].split('|>')[-1]
-        return text
+        if self.asr_model is None:
+            return "[ASR model not available - please enter text manually]"
+        try:
+            res = self.asr_model.generate(input=prompt_wav, language="auto", use_itn=True)
+            text = res[0]["text"].split('|>')[-1]
+            return text
+        except Exception as e:
+            print(f"⚠️  ASR transcription failed: {e}", file=sys.stderr)
+            return f"[Transcription failed - please enter text manually]"
 
     def generate_tts_audio(
         self,
